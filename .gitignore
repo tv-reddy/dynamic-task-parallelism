@@ -1,0 +1,5 @@
+# test files
+test/test.cpp
+
+# output files
+*.out
