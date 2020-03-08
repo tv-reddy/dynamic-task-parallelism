@@ -4,4 +4,4 @@ test/test.cpp
 # output files
 *.out
 
-*.DS_Store
+.DS_Store
