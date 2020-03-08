@@ -16,6 +16,115 @@
 #define MAX_DEPTH       16
 #define INSERTION_SORT  32
 
+// Pointers to the data, node and queue struct types
+typedef struct data* data_t;
+typedef struct node* node_t;
+typedef struct queue* queue_t;
+
+// Struct for every data item
+// *array - the full array of values to be sorted
+// *lptr - left pointer for the starting point
+// *rptr - right pointer for the end point
+struct data {
+    unsigned int *array;
+    unsigned int *lptr
+    unsigned int *rptr;
+}
+
+// Struct for a node in the queue
+// data_item - holds the information about a piece of work
+// next - pointer to the next node in the linked-list
+struct node {
+    data_t data_item;
+    node_t next;
+}
+
+// Struct a queue of nodes implemented as a singly linked-list
+// count - number of nodes in the queue
+// head - pointer to the head of the queue
+// tail - pointer to the tail of the queue
+struct queue {
+    int count;
+    node_t head;
+    node_t tail;
+}
+
+// Creates new queue
+queue_t create_queue(void) {
+    queue_t new_queue;
+
+    new_queue = (queue_t)malloc(sizeof(struct queue));
+    new_queue->head = (node_t)malloc(sizeof(node_t));
+    new_queue->tail = (node_t)malloc(sizeof(node_t));
+    new_queue->count = 0;
+
+    return new_queue;
+}
+
+// Destroy existing queue
+// TODO: Cater for case when queue is non-empty
+int destroy_queue(queue_t queue) {
+    if(!queue)
+        return -1;
+    if(queue->count > 0)
+        return -1;
+
+    free(queue);
+    return 0;
+}
+
+// Add new node into queue
+int enqueue(queue_t queue, data_t data) {
+    node_t new_task;
+    new_task = (node_t)malloc(sizeof(struct node));
+    new_task->data_item = (data_t)malloc(sizeof(struct data));
+    new_task->data_item = data;
+    new_task->next = NULL;
+
+
+    if(queue->count == 0) {
+        // If queue is empty, make the new task the head and tail
+        queue->tail = new_task;
+        queue->head = new_task;
+    } else {
+        // If queue is non-empty, set the next task as the new head
+        new_task->next = queue->head;
+        queue->head = new_task;
+    }
+
+    queue->count++;
+
+    return 0;
+}
+
+
+node_t pop_from_tail(queue_t queue) {
+    node_t task;
+    new_task = (node_t)malloc(sizeof(struct node));
+    if(queue->count == 0)
+        return NULL;
+
+    new_task = queue->tail;
+    //TODO: Continue from here. Might need to use doubly linked-list to set the previous node as the new tail
+    //queue->tail =
+}
+
+node_t steal_from_head(queue_t queue) {
+    node_t task;
+    new_task = (node_t)malloc(sizeof(struct node));
+    // If queue is empty, there's no task to steal
+    // If queue is element, don't steal to avoid contention with the queue's owner
+    if(queue->count == 0 || queue->count==1)
+        return NULL;
+
+    // TODO: Use atomicCAS here to resolve contention between multiple threads trying to steal
+    new_task = queue->head;
+    queue->head = queue->head->next;
+    return new_task;
+}
+
+
+
 ////////////////////////////////////////////////////////////////////////////////
 // Selection sort used when depth gets too big or the number of elements drops
 // below a threshold.
@@ -197,14 +306,14 @@ int main(int argc, char **argv)
 
     // Get device properties
     int device_count = 0, device = -1;
-    
+
     if(checkCmdLineFlag(argc, (const char **)argv, "device"))
     {
         device = getCmdLineArgumentInt(argc, (const char **)argv, "device");
-        
+
         cudaDeviceProp properties;
         checkCudaErrors(cudaGetDeviceProperties(&properties, device));
-        
+
         if (properties.major > 3 || (properties.major == 3 && properties.minor >= 5))
         {
             std::cout << "Running on GPU " << device << " (" << properties.name << ")" << std::endl;
@@ -220,7 +329,7 @@ int main(int argc, char **argv)
     else
     {
         checkCudaErrors(cudaGetDeviceCount(&device_count));
-    
+
         for (int i = 0 ; i < device_count ; ++i)
         {
             cudaDeviceProp properties;
@@ -264,13 +373,28 @@ int main(int argc, char **argv)
     checkCudaErrors(cudaMalloc((void **)&d_data, num_items * sizeof(unsigned int)));
     checkCudaErrors(cudaMemcpy(d_data, h_data, num_items * sizeof(unsigned int), cudaMemcpyHostToDevice));
 
+
     // Execute
     std::cout << "Running quicksort on " << num_items << " elements" << std::endl;
     run_qsort(d_data, num_items);
 
+    // Copy result from GPU back to CPU
+    unsigned int *results_h = new unsigned[num_items];
+    checkCudaErrors(cudaMemcpy(results_h, d_data, num_items*sizeof(unsigned), cudaMemcpyDeviceToHost));
+
     // Check result
     std::cout << "Validating results: ";
     check_results(num_items, d_data);
+
+    // Print result
+    std::cout<<"[";
+    for(int i = 0; i < num_items; i++) {
+        std::cout<<results_h[i];
+        if(i < num_items -1) {
+            std::cout<<", ";
+        }
+    }
+    std::cout<<"]"<<std::endl;
 
     free(h_data);
     checkCudaErrors(cudaFree(d_data));
