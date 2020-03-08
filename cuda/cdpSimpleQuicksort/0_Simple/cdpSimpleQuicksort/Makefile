@@ -152,21 +152,21 @@ LIBRARIES += -lcudadevrt
 # Target rules
 all: build
 
-build: cdpSimpleQuicksort
+build: quicksort_workstealing_linked_list
 
-cdpSimpleQuicksort.o:cdpSimpleQuicksort.cu
+quicksort_workstealing_linked_list.o:quicksort_workstealing_linked_list.cu
 	$(NVCC) $(INCLUDES) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
 
-cdpSimpleQuicksort: cdpSimpleQuicksort.o
+quicksort_workstealing_linked_list: quicksort_workstealing_linked_list.o
 	$(NVCC) $(ALL_LDFLAGS) $(GENCODE_FLAGS) -o $@ $+ $(LIBRARIES)
 	mkdir -p ../../bin/$(OS_ARCH)/$(OSLOWER)/$(TARGET)$(if $(abi),/$(abi))
 	cp $@ ../../bin/$(OS_ARCH)/$(OSLOWER)/$(TARGET)$(if $(abi),/$(abi))
 
 run: build
-	./cdpSimpleQuicksort
+	./quicksort_workstealing_linked_list
 
 clean:
-	rm -f cdpSimpleQuicksort cdpSimpleQuicksort.o
-	rm -rf ../../bin/$(OS_ARCH)/$(OSLOWER)/$(TARGET)$(if $(abi),/$(abi))/cdpSimpleQuicksort
+	rm -f quicksort_workstealing_linked_list quicksort_workstealing_linked_list.o
+	rm -rf ../../bin/$(OS_ARCH)/$(OSLOWER)/$(TARGET)$(if $(abi),/$(abi))/quicksort_workstealing_linked_list
 
 clobber: clean
