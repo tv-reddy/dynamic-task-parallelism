@@ -152,21 +152,21 @@ LIBRARIES += -lcudadevrt
 # Target rules
 all: build
 
-build: quicksort_workstealing_linked_list
+build: quicksort_workstealing_vector
 
-quicksort_workstealing_linked_list.o:quicksort_workstealing_linked_list.cu
+quicksort_workstealing_vector.o:quicksort_workstealing_vector.cu
 	$(NVCC) $(INCLUDES) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
 
-quicksort_workstealing_linked_list: quicksort_workstealing_linked_list.o
+quicksort_workstealing_vector: quicksort_workstealing_vector.o
 	$(NVCC) $(ALL_LDFLAGS) $(GENCODE_FLAGS) -o $@ $+ $(LIBRARIES)
 	mkdir -p ../../bin/$(OS_ARCH)/$(OSLOWER)/$(TARGET)$(if $(abi),/$(abi))
 	cp $@ ../../bin/$(OS_ARCH)/$(OSLOWER)/$(TARGET)$(if $(abi),/$(abi))
 
 run: build
-	./quicksort_workstealing_linked_list
+	./quicksort_workstealing_vector
 
 clean:
-	rm -f quicksort_workstealing_linked_list quicksort_workstealing_linked_list.o
-	rm -rf ../../bin/$(OS_ARCH)/$(OSLOWER)/$(TARGET)$(if $(abi),/$(abi))/quicksort_workstealing_linked_list
+	rm -f quicksort_workstealing_vector quicksort_workstealing_vector.o
+	rm -rf ../../bin/$(OS_ARCH)/$(OSLOWER)/$(TARGET)$(if $(abi),/$(abi))/quicksort_workstealing_vector
 
 clobber: clean
