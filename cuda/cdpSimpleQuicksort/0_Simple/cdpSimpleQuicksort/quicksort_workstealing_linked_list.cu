@@ -15,11 +15,8 @@ le/*
 #include <thrust/device_vector.h>
 
 #define MAX_DEPTH       16
+#define MAX_TASKS       6
 #define INSERTION_SORT  32
-
-typedef struct Task_t;
-typedef struct Deque_t;
-typedef struct Head_t;
 
 struct Task {
     int* array;
@@ -38,6 +35,11 @@ struct Deque {
     unsigned int tail;
     Task tasks[MAX_TASKS];    
 }
+
+typedef struct Task* Task_t;
+typedef struct Deque* Deque_t;
+typedef struct Head* Head_t;
+
 
 // __global__
 // Deque deques[MAX_THREAD_BLOCKS];
