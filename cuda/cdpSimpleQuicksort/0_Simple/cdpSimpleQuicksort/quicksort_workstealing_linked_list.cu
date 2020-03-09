@@ -23,7 +23,7 @@ typedef struct Deque* Deque_t;
 typedef struct Head* Head_t;
 
 struct Task {
-    int* elements;
+    unsigned int* elements;
     unsigned int left;
     unsigned int right;
     unsigned int depth;
@@ -47,7 +47,7 @@ struct Deque {
 
 // to push the task on to the work queue
 __device__ 
-void push(Deque_t queue, Task newTask) 
+void push(Deque_t queue, Task_t newTask) 
 {   
     if (queue->tail < MAX_TASKS)
     {
@@ -160,7 +160,7 @@ __global__ void cdp_simple_quicksort(unsigned int *data, int left, int right, in
         __global__ Deque_t queue;
 
         // allocate memory for the deque
-        queue = (Deque_t)malloc(sizeof(Struct Deque));
+        queue = (Deque_t)malloc(sizeof(struct Deque));
         // TODO: Initialize the pointers and tasks array for the queue
         queue->head.index = 0;
         queue->head.ctr = 0;
@@ -270,16 +270,16 @@ __global__ void cdp_simple_quicksort(unsigned int *data, int left, int right, in
         int ATTEMPTS = 10;
         for(int i=0; i < ATTEMPTS; i++) {
             task = steal(queue);
-            if (task) {
+            if (task.elements > 0) {
                 break;
             }
         }
 
-        if(task && task.elements != 0) {
+        if(task.elements > 0) {
             // TODO: launch the task
             cudaStream_t s1;
             cudaStreamCreateWithFlags(&s1, cudaStreamNonBlocking);
-            cdp_simple_quicksort<<< 2, 1, 0, s1 >>>(task.elements, task.nleft, tasks.right, task.depth+1);
+            cdp_simple_quicksort<<< 2, 1, 0, s1 >>>(task.elements, task.left, task.right, task.depth+1);
             cudaStreamDestroy(s1);
         } else {
             return;
@@ -287,8 +287,8 @@ __global__ void cdp_simple_quicksort(unsigned int *data, int left, int right, in
     }
 
     // TODO: freeup the memory
-    free(task1);
-    free(task2);
+    // free(task1);
+    // free(task2);
     free(deque);
 }
 
