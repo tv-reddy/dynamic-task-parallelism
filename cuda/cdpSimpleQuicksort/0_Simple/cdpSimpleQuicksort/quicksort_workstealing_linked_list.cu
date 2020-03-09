@@ -40,10 +40,17 @@ struct Deque {
     Task tasks[MAX_TASKS];    
 };
 
-// __global__
-// Deque deques[MAX_THREAD_BLOCKS];
-// Each block should create it's own queue
-
+// NULL task
+Task nullTask (void) {
+    //Task_t taskPtr;
+    Task task
+    //taskPtr = (Task_t)malloc(sizeof(struct Task));
+    task.elements = 0;
+    task.left = 0;
+    task.right = 0;
+    task.depth = 0;
+    return task
+}
 
 // to push the task on to the work queue
 __device__ 
@@ -72,7 +79,7 @@ Task pop(Deque_t queue)
     Task task;
 
     if(queue->tail == 0)
-        return d_dummy_task;
+        return nullTask();
 
     queue->tail--;
     task = queue->tasks[queue->tail];
@@ -91,7 +98,7 @@ Task pop(Deque_t queue)
             return task;
 
     queue->head = newHead;
-    return d_dummy_task;
+    return nullTask();
 }
 
 // to steal tasks from the work queue
@@ -103,7 +110,7 @@ Task steal(Deque_t queue)
 
     oldHead = queue->head;
     if(queue->tail <= oldHead.index)
-        return d_dummy_task;
+        return nullTask();
     
     task = queue->tasks[oldHead.index];
 
@@ -113,7 +120,7 @@ Task steal(Deque_t queue)
         return task;
     
     // fix this
-    return d_dummy_task;
+    return nullTask();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
