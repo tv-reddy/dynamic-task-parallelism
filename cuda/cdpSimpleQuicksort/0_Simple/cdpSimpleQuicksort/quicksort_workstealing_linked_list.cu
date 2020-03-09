@@ -43,13 +43,13 @@ struct Deque {
 // NULL task
 Task nullTask (void) {
     //Task_t taskPtr;
-    Task task
+    Task task;
     //taskPtr = (Task_t)malloc(sizeof(struct Task));
     task.elements = 0;
     task.left = 0;
     task.right = 0;
     task.depth = 0;
-    return task
+    return task;
 }
 
 // to push the task on to the work queue
@@ -161,7 +161,7 @@ __device__ void selection_sort(unsigned int *data, int left, int right)
 __global__ void cdp_simple_quicksort(unsigned int *data, int left, int right, int depth)
 {
     
-    volatile bool lock = True;
+    volatile bool lock = true;
     
     while(lock){
         if (blockIdx.x == 0)
@@ -228,14 +228,14 @@ __global__ void cdp_simple_quicksort(unsigned int *data, int left, int right, in
                 // cudaStreamDestroy(s);
 
                 Task task1;
-                task1 = (Task_t)malloc(sizeof(struct Task));
+                //task1 = (Task_t)malloc(sizeof(struct Task));
                 // TODO: point to the subarray 
-                task1->elements = data;
+                task1.elements = data;
                 // TODO: left and right limit
-                task1->left = left;
-                task1->right = nright;
+                task1.left = left;
+                task1.right = nright;
                 // TODO: depth
-                task1->depth = depth + 1;
+                task1.depth = depth + 1;
 
                 // TODO: push this task to the queue
                 push(queue, task1);
@@ -250,14 +250,14 @@ __global__ void cdp_simple_quicksort(unsigned int *data, int left, int right, in
                 // cudaStreamDestroy(s1);
 
                 Task task2;
-                task2 = (Task_t)malloc(sizeof(struct Task));
+                //task2 = (Task_t)malloc(sizeof(struct Task));
                 // TODO: point to the subarray 
-                task2->elements = data;
+                task2.elements = data;
                 // TODO: left and right limit
-                task2->left = nleft;
-                task2->right = right;
+                task2.left = nleft;
+                task2.right = right;
                 // TODO: depth
-                task2->depth = depth + 1;
+                task2.depth = depth + 1;
                 // TODO: push this task to the queue
                 push(queue, task2);
             }
