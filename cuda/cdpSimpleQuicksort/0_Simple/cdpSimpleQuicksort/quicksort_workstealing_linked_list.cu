@@ -1,4 +1,4 @@
-le/*
+/*
 * Copyright 1993-2014 NVIDIA Corporation.  All rights reserved.
 *
 * Please refer to the NVIDIA end user license agreement (EULA) associated
@@ -18,6 +18,10 @@ le/*
 #define MAX_TASKS       6
 #define INSERTION_SORT  32
 
+typedef struct Task* Task_t;
+typedef struct Deque* Deque_t;
+typedef struct Head* Head_t;
+
 struct Task {
     int* elements;
     unsigned int left;
@@ -28,18 +32,13 @@ struct Task {
 struct Head {
     unsigned short index;
     unsigned short ctr;
-}
+};
 
 struct Deque {
     Head head;
     unsigned int tail;
     Task tasks[MAX_TASKS];    
-}
-
-typedef struct Task_t;
-typedef struct Deque_t;
-typedef struct Head_t;
-
+};
 
 // __global__
 // Deque deques[MAX_THREAD_BLOCKS];
@@ -73,7 +72,7 @@ Task pop(Deque_t queue)
     Task task;
 
     if(queue->tail == 0)
-        return NULL;
+        return d_dummy_task;
 
     queue->tail--;
     task = queue->tasks[queue->tail];
@@ -91,8 +90,8 @@ Task pop(Deque_t queue)
         if(atomicCAS(&(queue->head), oldHead, newHead))
             return task;
 
-    head = newHead;
-    return NULL;
+    queue->head = newHead;
+    return d_dummy_task;
 }
 
 // to steal tasks from the work queue
@@ -103,8 +102,8 @@ Task steal(Deque_t queue)
     Task task;
 
     oldHead = queue->head;
-    if(tail <= oldHead.index)
-        return NULL;
+    if(queue->tail <= oldHead.index)
+        return d_dummy_task;
     
     task = queue->tasks[oldHead.index];
 
@@ -114,7 +113,7 @@ Task steal(Deque_t queue)
         return task;
     
     // fix this
-    return NULL;
+    return d_dummy_task;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -158,8 +157,7 @@ __global__ void cdp_simple_quicksort(unsigned int *data, int left, int right, in
     if (blockIdx.x == 0)
     {
         // create deque for this kernel call in global memory
-        __global__
-        Deque_t queue;
+        __global__ Deque_t queue;
 
         // allocate memory for the deque
         queue = (Deque_t)malloc(sizeof(Struct Deque));
@@ -277,7 +275,7 @@ __global__ void cdp_simple_quicksort(unsigned int *data, int left, int right, in
             }
         }
 
-        if(task) {
+        if(task && task.elements != 0) {
             // TODO: launch the task
             cudaStream_t s1;
             cudaStreamCreateWithFlags(&s1, cudaStreamNonBlocking);
@@ -426,6 +424,12 @@ int main(int argc, char **argv)
     // Create input data
     unsigned int *h_data = 0;
     unsigned int *d_data = 0;
+    
+    // Create dummy task
+    Task_t h_dummy_task = {0, 0, 0, 0};
+    __device__ Task_t d_dummy_task;
+    checkCudaErrors(cudaMalloc((void **)&d_dummy_task, sizeof(struct Task)));
+    checkCudaErrors(cudaMemcpy(d_dummy_task, h_dummy_task, sizeof(struct Task), cudaMemcpyHostToDevice));
 
     // Allocate CPU memory and initialize data.
     std::cout << "Initializing data:" << std::endl;
