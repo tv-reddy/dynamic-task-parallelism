@@ -1,4 +1,4 @@
-/*
+le/*
 * Copyright 1993-2014 NVIDIA Corporation.  All rights reserved.
 *
 * Please refer to the NVIDIA end user license agreement (EULA) associated
@@ -12,118 +12,105 @@
 #include <cstdio>
 #include <helper_cuda.h>
 #include <helper_string.h>
+#include <thrust/device_vector.h>
 
 #define MAX_DEPTH       16
 #define INSERTION_SORT  32
 
-// Pointers to the data, node and queue struct types
-typedef struct data* data_t;
-typedef struct node* node_t;
-typedef struct queue* queue_t;
+typedef struct Task_t;
+typedef struct Deque_t;
+typedef struct Head_t;
 
-// Struct for every data item
-// *array - the full array of values to be sorted
-// *lptr - left pointer for the starting point
-// *rptr - right pointer for the end point
-struct data {
-    unsigned int *array;
-    unsigned int *lptr
-    unsigned int *rptr;
+struct Task {
+    int* array;
+    unsigned int left;
+    unsigned int right;
+    unsigned int depth;
+};
+
+struct Head {
+    unsigned short index;
+    unsigned short ctr;
 }
 
-// Struct for a node in the queue
-// data_item - holds the information about a piece of work
-// next - pointer to the next node in the linked-list
-struct node {
-    data_t data_item;
-    node_t next;
+struct Deque {
+    Head head;
+    unsigned int tail;
+    Task tasks[MAX_TASKS];    
 }
 
-// Struct a queue of nodes implemented as a singly linked-list
-// count - number of nodes in the queue
-// head - pointer to the head of the queue
-// tail - pointer to the tail of the queue
-struct queue {
-    int count;
-    node_t head;
-    node_t tail;
-}
-
-// Creates new queue
-queue_t create_queue(void) {
-    queue_t new_queue;
-
-    new_queue = (queue_t)malloc(sizeof(struct queue));
-    new_queue->head = (node_t)malloc(sizeof(node_t));
-    new_queue->tail = (node_t)malloc(sizeof(node_t));
-    new_queue->count = 0;
-
-    return new_queue;
-}
-
-// Destroy existing queue
-// TODO: Cater for case when queue is non-empty
-int destroy_queue(queue_t queue) {
-    if(!queue)
-        return -1;
-    if(queue->count > 0)
-        return -1;
-
-    free(queue);
-    return 0;
-}
-
-// Add new node into queue
-int enqueue(queue_t queue, data_t data) {
-    node_t new_task;
-    new_task = (node_t)malloc(sizeof(struct node));
-    new_task->data_item = (data_t)malloc(sizeof(struct data));
-    new_task->data_item = data;
-    new_task->next = NULL;
+// __global__
+// Deque deques[MAX_THREAD_BLOCKS];
+// Each block should create it's own queue
 
 
-    if(queue->count == 0) {
-        // If queue is empty, make the new task the head and tail
-        queue->tail = new_task;
-        queue->head = new_task;
-    } else {
-        // If queue is non-empty, set the next task as the new head
-        new_task->next = queue->head;
-        queue->head = new_task;
+// to push the task on to the work queue
+__device__ 
+void push(Deque_t queue, Task newTask) 
+{
+    if (queue->tail < MAX_TASKS)
+    {
+        queue->tasks[queue->tail] = newTask;
+        queue->tail++;
     }
-
-    queue->count++;
-
-    return 0;
+    else
+    {
+        printf("Work queue full!\n");
+    }
 }
 
+// pop the task from the work queque
+__device__
+Task pop(Deque_t queue)
+{
+    Head oldHead, newHead;
+    unsigned int oldTail;
+    Task task;
 
-node_t pop_from_tail(queue_t queue) {
-    node_t task;
-    new_task = (node_t)malloc(sizeof(struct node));
-    if(queue->count == 0)
+    if(queue->tail == 0)
         return NULL;
 
-    new_task = queue->tail;
-    //TODO: Continue from here. Might need to use doubly linked-list to set the previous node as the new tail
-    //queue->tail =
+    queue->tail--;
+    task = tasks[tail];
+
+    oldHead = queue->head;
+    if(queue->tail > oldHead.index)
+        return task;
+    
+    oldTail = queue->tail;
+    queue->tail = 0;
+    newHead.index = 0;
+    newHead.ctr = oldHead.ctr + 1;
+
+    if(oldTail == oldHead.index)
+        if(atomicCAS(&(queue->head),oldHead,newHead))
+            return task;
+
+    head = newHead;
+    return NULL;
 }
 
-node_t steal_from_head(queue_t queue) {
-    node_t task;
-    new_task = (node_t)malloc(sizeof(struct node));
-    // If queue is empty, there's no task to steal
-    // If queue is element, don't steal to avoid contention with the queue's owner
-    if(queue->count == 0 || queue->count==1)
+// to steal tasks from the work queue
+__device__ 
+Task steal(Deque_t queue) 
+{
+    Head oldHead, newHead;
+    Task task;
+
+    oldHead = queue->head;
+    if(tail <= oldHead.index)
         return NULL;
+    
+    task = queue->tasks[oldHead.index];
 
-    // TODO: Use atomicCAS here to resolve contention between multiple threads trying to steal
-    new_task = queue->head;
-    queue->head = queue->head->next;
-    return new_task;
+    newHead = oldHead;
+    newHead.index++;
+    if( atomicCAS(&(queue->head),oldHead,newHead))
+        return task;
+    
+    // fix this
+    return NULL;
 }
-
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // Selection sort used when depth gets too big or the number of elements drops
@@ -160,75 +147,145 @@ __device__ void selection_sort(unsigned int *data, int left, int right)
 ////////////////////////////////////////////////////////////////////////////////
 // Very basic quicksort algorithm, recursively launching the next level.
 ////////////////////////////////////////////////////////////////////////////////
-__global__ void cdp_simple_quicksort(unsigned int *data, int left, int right, int depth)
+__global__ void cdp_simple_quicksort(unsigned int *data,
+                                    int left, int right,
+                                    int depth, thrust::device_vector<task> d_queue,
+                                    unsigned int num_items)
 {
-    // If we're too deep or there are few elements left, we use an insertion sort...
-    if (depth >= MAX_DEPTH || right-left <= INSERTION_SORT)
+    
+    if (blockIdx.x == 0)
     {
-        selection_sort(data, left, right);
-        return;
-    }
-
-    unsigned int *lptr = data+left;
-    unsigned int *rptr = data+right;
-    unsigned int  pivot = data[(left+right)/2];
-
-    // Do the partitioning.
-    while (lptr <= rptr)
-    {
-        // Find the next left- and right-hand values to swap
-        unsigned int lval = *lptr;
-        unsigned int rval = *rptr;
-
-        // Move the left pointer as long as the pointed element is smaller than the pivot.
-        while (lval < pivot)
+        // create sperate queues for each block in global memory
+        __global__
+        Deque_t queue;
+        
+        // TODO: Initialize the pointers
+        queue->tail = 0;
+        queue->head = 0;
+        // If we're too deep or there are few elements left, we use an insertion sort...
+        if (depth >= MAX_DEPTH || right-left <= INSERTION_SORT)
         {
-            lptr++;
-            lval = *lptr;
+            selection_sort(data, left, right);
+            return;
         }
 
-        // Move the right pointer as long as the pointed element is larger than the pivot.
-        while (rval > pivot)
+        unsigned int *lptr = data+left;
+        unsigned int *rptr = data+right;
+        unsigned int  pivot = data[(left+right)/2];
+
+        // Do the partitioning.
+        while (lptr <= rptr)
         {
-            rptr--;
-            rval = *rptr;
+            // Find the next left- and right-hand values to swap
+            unsigned int lval = *lptr;
+            unsigned int rval = *rptr;
+
+            // Move the left pointer as long as the pointed element is smaller than the pivot.
+            while (lval < pivot)
+            {
+                lptr++;
+                lval = *lptr;
+            }
+
+            // Move the right pointer as long as the pointed element is larger than the pivot.
+            while (rval > pivot)
+            {
+                rptr--;
+                rval = *rptr;
+            }
+
+            // If the swap points are valid, do the swap!
+            if (lptr <= rptr)
+            {
+                *lptr++ = rval;
+                *rptr-- = lval;
+            }
         }
 
-        // If the swap points are valid, do the swap!
-        if (lptr <= rptr)
+        // Now the recursive part
+        int nright = rptr - data;
+        int nleft  = lptr - data;
+
+        // Launch a new block to sort the left part.
+        if (left < (rptr-data))
         {
-            *lptr++ = rval;
-            *rptr-- = lval;
+            // cudaStream_t s;
+            // cudaStreamCreateWithFlags(&s, cudaStreamNonBlocking);
+            // cdp_simple_quicksort<<< 1, 1, 0, s >>>(data, left, nright, depth+1);
+            // cudaStreamDestroy(s);
+
+            task_t task1;
+            task1 = (task_t)malloc(sizeof(struct task));
+            task1->array = (int*)malloc((nright - left) * sizeof(int))
+            task1->left_ptr = (int*)malloc(sizeof(int));
+            task1->right_ptr = (int*)malloc(sizeof(int));
+            // TODO: point to the subarray 
+            task1->array = data;
+            // TODO: left and right limit
+            task1->left = left;
+            task1->left = nright;
+            // TODO: depth
+            task1->depth = depth + 1;
+
+            // TODO: push this task to the queue
+            push(queue, task1);
         }
-    }
 
-    // Now the recursive part
-    int nright = rptr - data;
-    int nleft  = lptr - data;
+        // Launch a new block to sort the right part.
+        if ((lptr-data) < right)
+        {
+            // cudaStream_t s1;
+            // cudaStreamCreateWithFlags(&s1, cudaStreamNonBlocking);
+            // cdp_simple_quicksort<<< 1, 1, 0, s1 >>>(data, nleft, right, depth+1);
+            // cudaStreamDestroy(s1);
 
-    // Launch a new block to sort the left part.
-    if (left < (rptr-data))
-    {
+            task_t task2;
+            task2 = (task_t)malloc(sizeof(struct task));
+            task2->array = (int*)malloc((nright - left) * sizeof(int))
+            task2->left_ptr = (int*)malloc(sizeof(int));
+            task2->right_ptr = (int*)malloc(sizeof(int));
+            // TODO: point to the subarray 
+            task2->array = data;
+            // TODO: left and right limit
+            task2->left = nleft;
+            task2->left = right;
+            // TODO: depth
+            task2->depth = depth + 1;
+            // TODO: push this task to the queue
+            push(queue, task2);
+        }
+
+        // the parent block pops the first task
+        // TODO: pop the task
+        pop(queue);
+        // TODO: launch the task
         cudaStream_t s;
         cudaStreamCreateWithFlags(&s, cudaStreamNonBlocking);
-        cdp_simple_quicksort<<< 1, 1, 0, s >>>(data, left, nright, depth+1);
+        cdp_simple_quicksort<<< 2, 1, 0, s >>>(data, left, nright, depth+1);
         cudaStreamDestroy(s);
     }
 
-    // Launch a new block to sort the right part.
-    if ((lptr-data) < right)
+    // second task is stolen by the consumer
+    if(blockIdx.x == 1)
     {
+        // TODO: steal the task
+        steal(queue);
+        // TODO: launch the task
         cudaStream_t s1;
         cudaStreamCreateWithFlags(&s1, cudaStreamNonBlocking);
-        cdp_simple_quicksort<<< 1, 1, 0, s1 >>>(data, nleft, right, depth+1);
+        cdp_simple_quicksort<<< 2, 1, 0, s1 >>>(data, nleft, right, depth+1);
         cudaStreamDestroy(s1);
     }
+
+    // TODO: freeup the memory
+    free();
+  
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Call the quicksort kernel from the host.
 ////////////////////////////////////////////////////////////////////////////////
-void run_qsort(unsigned int *data, unsigned int nitems)
+void run_qsort(unsigned int *data, unsigned int nitems, thrust::device_vector<task> d_queue)
 {
     // Prepare CDP for the max depth 'MAX_DEPTH'.
     checkCudaErrors(cudaDeviceSetLimit(cudaLimitDevRuntimeSyncDepth, MAX_DEPTH));
@@ -237,7 +294,7 @@ void run_qsort(unsigned int *data, unsigned int nitems)
     int left = 0;
     int right = nitems-1;
     std::cout << "Launching kernel on the GPU" << std::endl;
-    cdp_simple_quicksort<<< 1, 1 >>>(data, left, right, 0);
+    cdp_simple_quicksort<<< 2, 1 >>>(data, left, right, 0, d_queue, nitems);
     checkCudaErrors(cudaDeviceSynchronize());
 }
 
@@ -373,10 +430,15 @@ int main(int argc, char **argv)
     checkCudaErrors(cudaMalloc((void **)&d_data, num_items * sizeof(unsigned int)));
     checkCudaErrors(cudaMemcpy(d_data, h_data, num_items * sizeof(unsigned int), cudaMemcpyHostToDevice));
 
+    // Create thrust vectors to be used as task queues
+    //thrust::host_vector<task> host_task_queue_1(0);
+    thrust::host_vector<task> host_task_queue[MAX_DEPTH];
+    //thrust::device_vector<task> device_task_queue_1 = host_task_queue_1;
+    thrust::device_vector<task> device_task_queue = host_task_queue;
 
     // Execute
     std::cout << "Running quicksort on " << num_items << " elements" << std::endl;
-    run_qsort(d_data, num_items);
+    run_qsort(d_data, num_items, device_task_queue);
 
     // Copy result from GPU back to CPU
     unsigned int *results_h = new unsigned[num_items];
