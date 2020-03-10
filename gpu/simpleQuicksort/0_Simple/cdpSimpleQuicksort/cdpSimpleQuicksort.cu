@@ -12,6 +12,15 @@
 #include <cstdio>
 #include <helper_cuda.h>
 #include <helper_string.h>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <stdlib.h>
+#include <chrono>
+#define ARRAY_SIZE 1024
+#define FILE_NAME "data.txt"
+
+using namespace std;  
 
 #define MAX_DEPTH       16
 #define INSERTION_SORT  32
@@ -165,6 +174,33 @@ void check_results(int n, unsigned int *results_d)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Read random sequence data from the file.
+////////////////////////////////////////////////////////////////////////////////
+
+void fileRead(unsigned int *arr)
+{
+    ifstream myfile ("data.txt");
+
+    int idx = 0;
+    string line;
+    if (myfile.is_open())
+    {
+        while(!myfile.eof())
+        {
+            getline(myfile,line,'\n');
+            //cout << line << endl;
+            arr[idx] = stoi(line);
+            idx++;
+        }
+        myfile.close();
+    }
+    else cout << "Unable to open file"; 
+
+    //cout << "idx" << idx << endl;
+    //printArray(array, ARRAY_SIZE);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Main entry point.
 ////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char **argv)
@@ -252,7 +288,9 @@ int main(int argc, char **argv)
     // Allocate CPU memory and initialize data.
     std::cout << "Initializing data:" << std::endl;
     h_data =(unsigned int *)malloc(num_items*sizeof(unsigned int));
-    initialize_data(h_data, num_items);
+    //initialize_data(h_data, num_items);
+
+    fileRead(h_data);
 
     if (verbose)
     {
