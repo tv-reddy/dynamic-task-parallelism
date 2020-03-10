@@ -137,7 +137,11 @@ void run_qsort(unsigned int *data, unsigned int nitems)
     int left = 0;
     int right = nitems-1;
     std::cout << "Launching kernel on the GPU" << std::endl;
+    auto start = std::chrono::high_resolution_clock::now();
     cdp_simple_quicksort<<< 1, 1 >>>(data, left, right, 0);
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+    cout << "Time elapsed = "<< duration.count() << " us"<< endl;
     checkCudaErrors(cudaDeviceSynchronize());
 }
 
