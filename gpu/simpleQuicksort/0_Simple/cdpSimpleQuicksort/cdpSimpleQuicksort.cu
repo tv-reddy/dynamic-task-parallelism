@@ -181,7 +181,7 @@ void check_results(int n, unsigned int *results_d)
 // Read random sequence data from the file.
 ////////////////////////////////////////////////////////////////////////////////
 
-void fileRead(unsigned int *arr)
+void fileRead(unsigned int *arr, int num_items)
 {
     ifstream myfile ("data.txt");
 
@@ -189,7 +189,7 @@ void fileRead(unsigned int *arr)
     string line;
     if (myfile.is_open())
     {
-        while(!myfile.eof())
+        while(idx <= num_items)
         {
             getline(myfile,line,'\n');
             //cout << line << endl;
@@ -294,7 +294,7 @@ int main(int argc, char **argv)
     h_data =(unsigned int *)malloc(num_items*sizeof(unsigned int));
     //initialize_data(h_data, num_items);
 
-    fileRead(h_data);
+    fileRead(h_data, num_items);
 
     if (verbose)
     {

@@ -5,7 +5,7 @@
 #include <string>
 #include <stdlib.h>
 #include <chrono>
-#define ARRAY_SIZE 1024
+#define ARRAY_SIZE 30000
 #define FILE_NAME "data.txt"
 
 using namespace std;  
@@ -101,7 +101,7 @@ int main()
     quickSort(arr, 0, ARRAY_SIZE - 1);
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-    cout << "Time elapsed = "<< duration.count() << " ms"<< endl;  
+    cout << "Time elapsed = "<< duration.count() << " us"<< endl;  
     //cout << "Sorted array: \n";  
     //printArray(arr, ARRAY_SIZE);  
     return 0;  
