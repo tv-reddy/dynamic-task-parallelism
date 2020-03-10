@@ -4,6 +4,7 @@
 #include <sstream>
 #include <string>
 #include <stdlib.h>
+#include <chrono>
 #define ARRAY_SIZE 1024
 #define FILE_NAME "data.txt"
 
@@ -96,8 +97,12 @@ int main()
 {  
     int arr[ARRAY_SIZE];
     fileRead(arr);
-    quickSort(arr, 0, ARRAY_SIZE - 1);  
-    cout << "Sorted array: \n";  
-    printArray(arr, ARRAY_SIZE);  
+    auto start = std::chrono::high_resolution_clock::now(); 
+    quickSort(arr, 0, ARRAY_SIZE - 1);
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+    cout << "Time elapsed = "<< duration.count() << " ms"<< endl;  
+    //cout << "Sorted array: \n";  
+    //printArray(arr, ARRAY_SIZE);  
     return 0;  
 }
