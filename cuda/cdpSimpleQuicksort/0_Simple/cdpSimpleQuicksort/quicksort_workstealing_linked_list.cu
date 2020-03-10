@@ -40,10 +40,17 @@ struct Deque {
     Task tasks[MAX_TASKS];    
 };
 
-// __global__
-// Deque deques[MAX_THREAD_BLOCKS];
-// Each block should create it's own queue
-
+// NULL task
+Task nullTask (void) {
+    //Task_t taskPtr;
+    Task task;
+    //taskPtr = (Task_t)malloc(sizeof(struct Task));
+    task.elements = 0;
+    task.left = 0;
+    task.right = 0;
+    task.depth = 0;
+    return task;
+}
 
 // to push the task on to the work queue
 __device__ 
@@ -72,7 +79,7 @@ Task pop(Deque_t queue)
     Task task;
 
     if(queue->tail == 0)
-        return d_dummy_task;
+        return nullTask();
 
     queue->tail--;
     task = queue->tasks[queue->tail];
@@ -91,7 +98,7 @@ Task pop(Deque_t queue)
             return task;
 
     queue->head = newHead;
-    return d_dummy_task;
+    return nullTask();
 }
 
 // to steal tasks from the work queue
@@ -103,7 +110,7 @@ Task steal(Deque_t queue)
 
     oldHead = queue->head;
     if(queue->tail <= oldHead.index)
-        return d_dummy_task;
+        return nullTask();
     
     task = queue->tasks[oldHead.index];
 
@@ -113,7 +120,7 @@ Task steal(Deque_t queue)
         return task;
     
     // fix this
-    return d_dummy_task;
+    return nullTask();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -154,7 +161,7 @@ __device__ void selection_sort(unsigned int *data, int left, int right)
 __global__ void cdp_simple_quicksort(unsigned int *data, int left, int right, int depth)
 {
     
-    volatile bool lock = True;
+    volatile bool lock = true;
     
     while(lock){
         if (blockIdx.x == 0)
@@ -221,14 +228,14 @@ __global__ void cdp_simple_quicksort(unsigned int *data, int left, int right, in
                 // cudaStreamDestroy(s);
 
                 Task task1;
-                task1 = (Task_t)malloc(sizeof(struct Task));
+                //task1 = (Task_t)malloc(sizeof(struct Task));
                 // TODO: point to the subarray 
-                task1->elements = data;
+                task1.elements = data;
                 // TODO: left and right limit
-                task1->left = left;
-                task1->right = nright;
+                task1.left = left;
+                task1.right = nright;
                 // TODO: depth
-                task1->depth = depth + 1;
+                task1.depth = depth + 1;
 
                 // TODO: push this task to the queue
                 push(queue, task1);
@@ -243,14 +250,14 @@ __global__ void cdp_simple_quicksort(unsigned int *data, int left, int right, in
                 // cudaStreamDestroy(s1);
 
                 Task task2;
-                task2 = (Task_t)malloc(sizeof(struct Task));
+                //task2 = (Task_t)malloc(sizeof(struct Task));
                 // TODO: point to the subarray 
-                task2->elements = data;
+                task2.elements = data;
                 // TODO: left and right limit
-                task2->left = nleft;
-                task2->right = right;
+                task2.left = nleft;
+                task2.right = right;
                 // TODO: depth
-                task2->depth = depth + 1;
+                task2.depth = depth + 1;
                 // TODO: push this task to the queue
                 push(queue, task2);
             }
