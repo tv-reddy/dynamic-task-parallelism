@@ -30,8 +30,8 @@ struct Task {
 };
 
 struct Head {
-    unsigned short index;
-    unsigned short ctr;
+    unsigned int index;
+    unsigned int ctr;
 };
 
 struct Deque {
@@ -94,7 +94,7 @@ Task pop(Deque_t queue)
     newHead.ctr = oldHead.ctr + 1;
 
     if(oldTail == oldHead.index)
-        if(atomicCAS(&(queue->head), oldHead, newHead))
+        if(atomicCAS(&(queue->head.index), oldHead.index, newHead.index))
             return task;
 
     queue->head = newHead;
@@ -116,7 +116,7 @@ Task steal(Deque_t queue)
 
     newHead = oldHead;
     newHead.index++;
-    if( atomicCAS(&(queue->head), oldHead, newHead))
+    if(atomicCAS(&(queue->head.index), oldHead.index, newHead.index))
         return task;
     
     // fix this
@@ -167,7 +167,7 @@ __global__ void cdp_simple_quicksort(unsigned int *data, int left, int right, in
         if (blockIdx.x == 0)
         {
             // create deque for this kernel call in global memory
-            __global__ Deque_t queue;
+            volatile static Deque_t queue;
 
             // allocate memory for the deque
             queue = (Deque_t)malloc(sizeof(struct Deque));
@@ -280,7 +280,7 @@ __global__ void cdp_simple_quicksort(unsigned int *data, int left, int right, in
     // second task is stolen by the consumer
 
     // TODO: steal the task
-    Task task = NULL;
+    Task task;
     int ATTEMPTS = 10;
     for(int i=0; i < ATTEMPTS; i++) {
         task = steal(queue);
@@ -440,12 +440,6 @@ int main(int argc, char **argv)
     unsigned int *h_data = 0;
     unsigned int *d_data = 0;
     
-    // Create dummy task
-    Task_t h_dummy_task = {0, 0, 0, 0};
-    __device__ Task_t d_dummy_task;
-    checkCudaErrors(cudaMalloc((void **)&d_dummy_task, sizeof(struct Task)));
-    checkCudaErrors(cudaMemcpy(d_dummy_task, h_dummy_task, sizeof(struct Task), cudaMemcpyHostToDevice));
-
     // Allocate CPU memory and initialize data.
     std::cout << "Initializing data:" << std::endl;
     h_data =(unsigned int *)malloc(num_items*sizeof(unsigned int));
