@@ -205,7 +205,7 @@ void fileRead(unsigned int *arr)
 ////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char **argv)
 {
-    int num_items = 128;
+    int num_items = ARRAY_SIZE;
     bool verbose = false;
 
     if (checkCmdLineFlag(argc, (const char **)argv, "help") ||
